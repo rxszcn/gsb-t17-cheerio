@@ -740,6 +740,20 @@ export function data<T extends AnyNode>(
 }
 
 /**
+ * Get the value of an `option` element, using its text content as a fallback
+ * when the `value` attribute is absent. Read and write of `select` values share
+ * this rule.
+ *
+ * @param elem - The option element.
+ * @returns The option's value.
+ */
+function getOptionValue(elem: Element): string {
+  return hasOwn(elem.attribs, 'value')
+    ? elem.attribs.value
+    : text(elem.children);
+}
+
+/**
  * Method for getting the value of input, select, and textarea. Note: Support
  * for `map`, and `function` has not been added yet.
  *
@@ -791,24 +805,38 @@ export function val<T extends AnyNode>(
       return this.text(value as string);
     }
     case 'select': {
-      const option = this.find('option:selected');
       if (!querying) {
         if (this.attr('multiple') == null && typeof value === 'object') {
           return this;
         }
 
+        if (typeof value === 'object') {
+          const values = new Set(value);
+
+          this.find('option').each((_, el) => {
+            if (isTag(el)) {
+              if (values.has(getOptionValue(el))) {
+                el.attribs.selected = '';
+              } else {
+                delete el.attribs.selected;
+              }
+            }
+          });
+
+          return this;
+        }
+
         this.find('option').removeAttr('selected');
 
-        const values = typeof value === 'object' ? value : [value];
-        for (const val of values) {
-          this.find(`option[value="${val}"]`).attr('selected', '');
-        }
+        this.find(`option[value="${value}"]`).attr('selected', '');
 
         return this;
       }
 
+      const option = this.find('option:selected');
+
       return this.attr('multiple')
-        ? option.toArray().map((el) => text(el.children))
+        ? option.toArray().map(getOptionValue)
         : option.attr('value');
     }
     case 'button':
