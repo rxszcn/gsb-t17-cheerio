@@ -799,16 +799,24 @@ export function val<T extends AnyNode>(
 
         this.find('option').removeAttr('selected');
 
-        const values = typeof value === 'object' ? value : [value];
-        for (const val of values) {
-          this.find(`option[value="${val}"]`).attr('selected', '');
+        if (this.attr('multiple') == null) {
+          this.find(`option[value="${value}"]`).attr('selected', '');
+        } else {
+          const values = new Set(typeof value === 'object' ? value : [value]);
+          for (const el of this.find('option').toArray()) {
+            if (!isTag(el)) continue;
+            const optValue = getAttr(el, 'value');
+            if (optValue !== undefined && values.has(optValue)) {
+              setAttr(el, 'selected', '');
+            }
+          }
         }
 
         return this;
       }
 
       return this.attr('multiple')
-        ? option.toArray().map((el) => text(el.children))
+        ? option.toArray().map((el) => getAttr(el, 'value') as string)
         : option.attr('value');
     }
     case 'button':
